@@ -658,6 +658,8 @@
             // Initialize scroll-based category navigation when Step 2 is shown
             if (stepNumber === 2) {
                 setTimeout(() => {
+                    renderCategorySidebar();
+                    renderTopicCategories();
                     initializeScrollNavigation();
                 }, 100);
             }
