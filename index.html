@@ -185,59 +185,82 @@
             transform: translateY(0);
         }
 
-        .category-carousel {
+        /* New styles for Step 2 layout */
+        .step-2-container {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-bottom: 2rem;
+            height: 600px;
+            gap: 2rem;
+            margin-top: 1rem;
         }
         
-        .category-btn {
-            background: white;
-            border: 2px solid #e5e7eb;
-            border-radius: 0.75rem;
-            padding: 1rem 1.5rem;
-            font-weight: 600;
-            color: #4b5563;
-            transition: all 0.2s;
+        .topics-section {
+            flex: 0 0 75%;
+            overflow-y: auto;
+            padding-right: 1rem;
+            position: relative;
+        }
+        
+        .category-section {
+            flex: 0 0 25%;
+            border-left: 1px solid #e5e7eb;
+            padding-left: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .category-scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        
+        .category-item {
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
             cursor: pointer;
-            min-width: 120px;
-            text-align: center;
+            transition: all 0.2s;
+            font-weight: 500;
         }
         
-        .category-btn:hover {
-            border-color: #4f46e5;
-            color: #4f46e5;
+        .category-item:hover {
+            background-color: #f3f4f6;
         }
         
-        .category-btn.active {
+        .category-item.active {
             background-color: #4f46e5;
             color: white;
-            border-color: #4f46e5;
         }
         
-        .carousel-nav-btn {
-            background: #4f46e5;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
+        .topic-category {
+            min-height: 100%;
+            padding: 2rem 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
         }
         
-        .carousel-nav-btn:hover {
-            background: #3730a3;
+        .topic-category.active {
+            opacity: 1;
+            transform: translateY(0);
         }
         
-        .carousel-nav-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
+        .topic-category h3 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+            color: #1f2937;
+        }
+        
+        .topic-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        
+        .fixed-next-button {
+            margin-top: auto;
+            padding-top: 1rem;
         }
     </style>
 </head>
@@ -305,15 +328,6 @@
 
             <p class="text-gray-600 mb-4">Select **1 or 2 topics**. The order of selection determines the priority for content generation.</p>
 
-            <!-- Category Carousel -->
-            <div class="category-carousel">
-                <button id="prev-category" class="carousel-nav-btn">←</button>
-                <div id="category-buttons" class="flex gap-2 overflow-x-auto py-2 max-w-2xl">
-                    <!-- Categories will be populated by JavaScript -->
-                </div>
-                <button id="next-category" class="carousel-nav-btn">→</button>
-            </div>
-
             <div class="p-4 border border-gray-200 rounded-lg bg-gray-50 mb-4">
                 <div class="flex space-x-2 items-center">
                     <input type="text" id="custom-topic-text" placeholder="Search a custom topic or keyword..." 
@@ -325,17 +339,31 @@
             </div>
             <p id="selected-topics-indicator" class="text-sm font-medium text-gray-700 mb-6">Selected Topics (Priority Order): None</p>
 
-            <div id="topic-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                <!-- Topic cards will be populated by JavaScript -->
+            <!-- NEW LAYOUT FOR STEP 2 -->
+            <div class="step-2-container">
+                <!-- Topics Section (75%) -->
+                <div class="topics-section" id="topics-scroll-container">
+                    <!-- Categories will be populated by JavaScript -->
+                </div>
+                
+                <!-- Category Section (25%) -->
+                <div class="category-section">
+                    <div class="category-scroll-container" id="category-list">
+                        <!-- Categories will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="fixed-next-button">
+                        <button id="step-2-next" class="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 ease-in-out disabled:opacity-50 flex items-center justify-center space-x-2">
+                            <span>Next: Assignment Type</span>
+                            <span id="step-2-next-icon" class="font-bold">→</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="flex justify-between mt-8">
                 <button id="step-2-back" class="px-6 py-3 text-gray-600 border border-gray-400 rounded-lg font-semibold hover:bg-gray-100 transition duration-150 ease-in-out">
                     ← Back to API Setup
-                </button>
-                <button id="step-2-next" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 ease-in-out disabled:opacity-50 flex items-center space-x-2">
-                    <span>Next: Assignment Type</span>
-                    <span id="step-2-next-icon" class="font-bold">→</span>
                 </button>
             </div>
         </div>
@@ -482,111 +510,111 @@
             userAnswers: [],
             customTopicText: '',
             uploadedTopic: null,
-            currentCategory: 'English Literature'
+            currentCategory: 'Current Events'
         };
 
         // ==========================================================================================
-        // UPDATED TOPIC_POOL_DATA WITH 10 CATEGORIES
+        // UPDATED TOPIC_POOL_DATA WITH REQUESTED CATEGORY ORDER
         // ==========================================================================================
         const CATEGORIES = [
-            'English Literature',
-            'Current Events', 
-            'Economics & Business',
+            'Current Events',
+            'Economy & Business',
             'Science & Technology',
-            'History & World Events',
-            'Nature & Geography',
+            'World History',
             'Media & Entertainment',
-            'Cats & Dogs',
+            'Style & Fashion',
             'Art & Theatre',
-            'Style & Fashion'
+            'English Literature',
+            'Geography & Nature',
+            'Cats & Dogs'
         ];
 
         const TOPIC_POOL_DATA = [
-            // English Literature
-            { id: 1, name: 'Shakespeare', icon: '🎭', category: 'English Literature' },
-            { id: 2, name: 'Poetry Analysis', icon: '📜', category: 'English Literature' },
-            { id: 3, name: 'Modern Novels', icon: '📖', category: 'English Literature' },
-            { id: 4, name: 'Literary Criticism', icon: '✍️', category: 'English Literature' },
-            { id: 5, name: 'Classic Literature', icon: '🏛️', category: 'English Literature' },
-
             // Current Events
-            { id: 6, name: 'Global Politics', icon: '🌐', category: 'Current Events' },
-            { id: 7, name: 'Environmental News', icon: '🌍', category: 'Current Events' },
-            { id: 8, name: 'Technology Trends', icon: '📱', category: 'Current Events' },
-            { id: 9, name: 'Social Movements', icon: '✊', category: 'Current Events' },
-            { id: 10, name: 'Economic Updates', icon: '💹', category: 'Current Events' },
+            { id: 1, name: 'Global Politics', icon: '🌐', category: 'Current Events' },
+            { id: 2, name: 'Environmental News', icon: '🌍', category: 'Current Events' },
+            { id: 3, name: 'Technology Trends', icon: '📱', category: 'Current Events' },
+            { id: 4, name: 'Social Movements', icon: '✊', category: 'Current Events' },
+            { id: 5, name: 'Economic Updates', icon: '💹', category: 'Current Events' },
 
-            // Economics & Business
-            { id: 11, name: 'Marketing 101', icon: '📈', category: 'Economics & Business' },
-            { id: 12, name: 'Start-up Culture', icon: '💡', category: 'Economics & Business' },
-            { id: 13, name: 'Corporate Ethics', icon: '🤝', category: 'Economics & Business' },
-            { id: 14, name: 'Supply and Demand', icon: '📉', category: 'Economics & Business' },
-            { id: 15, name: 'Global Trade', icon: '🌐', category: 'Economics & Business' },
-            { id: 16, name: 'Cryptocurrency', icon: '₿', category: 'Economics & Business' },
-            { id: 17, name: 'Digital Marketing', icon: '📊', category: 'Economics & Business' },
-            { id: 18, name: 'Corporate Business Solutions', icon: '💼', category: 'Economics & Business' },
+            // Economy & Business
+            { id: 6, name: 'Marketing 101', icon: '📈', category: 'Economy & Business' },
+            { id: 7, name: 'Start-up Culture', icon: '💡', category: 'Economy & Business' },
+            { id: 8, name: 'Corporate Ethics', icon: '🤝', category: 'Economy & Business' },
+            { id: 9, name: 'Supply and Demand', icon: '📉', category: 'Economy & Business' },
+            { id: 10, name: 'Global Trade', icon: '🌐', category: 'Economy & Business' },
+            { id: 11, name: 'Cryptocurrency', icon: '₿', category: 'Economy & Business' },
+            { id: 12, name: 'Digital Marketing', icon: '📊', category: 'Economy & Business' },
+            { id: 13, name: 'Corporate Business Solutions', icon: '💼', category: 'Economy & Business' },
 
             // Science & Technology
-            { id: 19, name: 'AI & ML', icon: '🤖', category: 'Science & Technology' },
-            { id: 20, name: 'Quantum Physics', icon: '⚛️', category: 'Science & Technology' },
-            { id: 21, name: 'Biotechnology', icon: '🧬', category: 'Science & Technology' },
-            { id: 22, name: 'Cybersecurity', icon: '🔒', category: 'Science & Technology' },
-            { id: 23, name: 'Renewable Energy', icon: '💡', category: 'Science & Technology' },
-            { id: 24, name: 'Space Exploration', icon: '🚀', category: 'Science & Technology' },
-            { id: 25, name: 'Mental Wellness', icon: '🧘', category: 'Science & Technology' },
-            { id: 26, name: 'Exercise Science', icon: '🏃', category: 'Science & Technology' },
+            { id: 14, name: 'AI & ML', icon: '🤖', category: 'Science & Technology' },
+            { id: 15, name: 'Quantum Physics', icon: '⚛️', category: 'Science & Technology' },
+            { id: 16, name: 'Biotechnology', icon: '🧬', category: 'Science & Technology' },
+            { id: 17, name: 'Cybersecurity', icon: '🔒', category: 'Science & Technology' },
+            { id: 18, name: 'Renewable Energy', icon: '💡', category: 'Science & Technology' },
+            { id: 19, name: 'Space Exploration', icon: '🚀', category: 'Science & Technology' },
+            { id: 20, name: 'Mental Wellness', icon: '🧘', category: 'Science & Technology' },
+            { id: 21, name: 'Exercise Science', icon: '🏃', category: 'Science & Technology' },
 
-            // History & World Events
-            { id: 27, name: 'The Roman Empire', icon: '🏛️', category: 'History & World Events' },
-            { id: 28, name: 'Ancient Egypt', icon: '☥', category: 'History & World Events' },
-            { id: 29, name: 'World Wars', icon: '⚔️', category: 'History & World Events' },
-            { id: 30, name: 'Economic History', icon: '💰', category: 'History & World Events' },
-            { id: 31, name: 'Philosophy', icon: '🧠', category: 'History & World Events' },
-            { id: 32, name: 'Stoicism', icon: '🗿', category: 'History & World Events' },
-            { id: 33, name: 'Existentialism', icon: '🤔', category: 'History & World Events' },
-            { id: 34, name: 'Ethical Dilemmas', icon: '⚖️', category: 'History & World Events' },
-
-            // Nature & Geography
-            { id: 35, name: 'Climate Change', icon: '🌍', category: 'Nature & Geography' },
-            { id: 36, name: 'Volcanoes', icon: '🌋', category: 'Nature & Geography' },
-            { id: 37, name: 'Major River Systems', icon: '🏞️', category: 'Nature & Geography' },
-            { id: 38, name: 'Urban Planning', icon: '🏙️', category: 'Nature & Geography' },
-            { id: 39, name: 'Natural Resources', icon: '🌿', category: 'Nature & Geography' },
-            { id: 40, name: 'Capital Cities', icon: '🗺️', category: 'Nature & Geography' },
-            { id: 41, name: 'Nutrition & Diet', icon: '🍎', category: 'Nature & Geography' },
+            // World History
+            { id: 22, name: 'The Roman Empire', icon: '🏛️', category: 'World History' },
+            { id: 23, name: 'Ancient Egypt', icon: '☥', category: 'World History' },
+            { id: 24, name: 'World Wars', icon: '⚔️', category: 'World History' },
+            { id: 25, name: 'Economic History', icon: '💰', category: 'World History' },
+            { id: 26, name: 'Philosophy', icon: '🧠', category: 'World History' },
+            { id: 27, name: 'Stoicism', icon: '🗿', category: 'World History' },
+            { id: 28, name: 'Existentialism', icon: '🤔', category: 'World History' },
+            { id: 29, name: 'Ethical Dilemmas', icon: '⚖️', category: 'World History' },
 
             // Media & Entertainment
-            { id: 42, name: 'Music Theory', icon: '🎵', category: 'Media & Entertainment' },
-            { id: 43, name: 'History of Jazz', icon: '🎷', category: 'Media & Entertainment' },
-            { id: 44, name: 'Modern Pop Culture', icon: '🎤', category: 'Media & Entertainment' },
-            { id: 45, name: 'Film Noir', icon: '🎬', category: 'Media & Entertainment' },
-            { id: 46, name: 'Special Effects (CGI)', icon: '💥', category: 'Media & Entertainment' },
-            { id: 47, name: 'Screenwriting', icon: '✍️', category: 'Media & Entertainment' },
-            { id: 48, name: 'Cinema Classics', icon: '🎥', category: 'Media & Entertainment' },
-            { id: 49, name: 'Video Game Industry', icon: '🎮', category: 'Media & Entertainment' },
-            { id: 50, name: 'Social Media Trends', icon: '📱', category: 'Media & Entertainment' },
-            { id: 51, name: 'Reality Television', icon: '📺', category: 'Media & Entertainment' },
-
-            // Cats & Dogs
-            { id: 52, name: 'Cat Behavior', icon: '🐱', category: 'Cats & Dogs' },
-            { id: 53, name: 'Dog Training', icon: '🐶', category: 'Cats & Dogs' },
-            { id: 54, name: 'Pet Nutrition', icon: '🥩', category: 'Cats & Dogs' },
-            { id: 55, name: 'Animal Welfare', icon: '❤️', category: 'Cats & Dogs' },
-            { id: 56, name: 'Veterinary Science', icon: '🐾', category: 'Cats & Dogs' },
-
-            // Art & Theatre
-            { id: 57, name: 'Renaissance Art', icon: '🎨', category: 'Art & Theatre' },
-            { id: 58, name: 'Modern Theatre', icon: '🎭', category: 'Art & Theatre' },
-            { id: 59, name: 'Sculpture', icon: '🗿', category: 'Art & Theatre' },
-            { id: 60, name: 'Performance Art', icon: '💃', category: 'Art & Theatre' },
-            { id: 61, name: 'Art History', icon: '📜', category: 'Art & Theatre' },
+            { id: 30, name: 'Music Theory', icon: '🎵', category: 'Media & Entertainment' },
+            { id: 31, name: 'History of Jazz', icon: '🎷', category: 'Media & Entertainment' },
+            { id: 32, name: 'Modern Pop Culture', icon: '🎤', category: 'Media & Entertainment' },
+            { id: 33, name: 'Film Noir', icon: '🎬', category: 'Media & Entertainment' },
+            { id: 34, name: 'Special Effects (CGI)', icon: '💥', category: 'Media & Entertainment' },
+            { id: 35, name: 'Screenwriting', icon: '✍️', category: 'Media & Entertainment' },
+            { id: 36, name: 'Cinema Classics', icon: '🎥', category: 'Media & Entertainment' },
+            { id: 37, name: 'Video Game Industry', icon: '🎮', category: 'Media & Entertainment' },
+            { id: 38, name: 'Social Media Trends', icon: '📱', category: 'Media & Entertainment' },
+            { id: 39, name: 'Reality Television', icon: '📺', category: 'Media & Entertainment' },
 
             // Style & Fashion
-            { id: 62, name: 'Sustainable Fashion', icon: '♻️', category: 'Style & Fashion' },
-            { id: 63, name: 'Fashion History', icon: '👗', category: 'Style & Fashion' },
-            { id: 64, name: 'Haute Couture', icon: '👠', category: 'Style & Fashion' },
-            { id: 65, name: 'Street Style', icon: '👕', category: 'Style & Fashion' },
-            { id: 66, name: 'Fashion Design', icon: '📐', category: 'Style & Fashion' }
+            { id: 40, name: 'Sustainable Fashion', icon: '♻️', category: 'Style & Fashion' },
+            { id: 41, name: 'Fashion History', icon: '👗', category: 'Style & Fashion' },
+            { id: 42, name: 'Haute Couture', icon: '👠', category: 'Style & Fashion' },
+            { id: 43, name: 'Street Style', icon: '👕', category: 'Style & Fashion' },
+            { id: 44, name: 'Fashion Design', icon: '📐', category: 'Style & Fashion' },
+
+            // Art & Theatre
+            { id: 45, name: 'Renaissance Art', icon: '🎨', category: 'Art & Theatre' },
+            { id: 46, name: 'Modern Theatre', icon: '🎭', category: 'Art & Theatre' },
+            { id: 47, name: 'Sculpture', icon: '🗿', category: 'Art & Theatre' },
+            { id: 48, name: 'Performance Art', icon: '💃', category: 'Art & Theatre' },
+            { id: 49, name: 'Art History', icon: '📜', category: 'Art & Theatre' },
+
+            // English Literature
+            { id: 50, name: 'Shakespeare', icon: '🎭', category: 'English Literature' },
+            { id: 51, name: 'Poetry Analysis', icon: '📜', category: 'English Literature' },
+            { id: 52, name: 'Modern Novels', icon: '📖', category: 'English Literature' },
+            { id: 53, name: 'Literary Criticism', icon: '✍️', category: 'English Literature' },
+            { id: 54, name: 'Classic Literature', icon: '🏛️', category: 'English Literature' },
+
+            // Geography & Nature
+            { id: 55, name: 'Climate Change', icon: '🌍', category: 'Geography & Nature' },
+            { id: 56, name: 'Volcanoes', icon: '🌋', category: 'Geography & Nature' },
+            { id: 57, name: 'Major River Systems', icon: '🏞️', category: 'Geography & Nature' },
+            { id: 58, name: 'Urban Planning', icon: '🏙️', category: 'Geography & Nature' },
+            { id: 59, name: 'Natural Resources', icon: '🌿', category: 'Geography & Nature' },
+            { id: 60, name: 'Capital Cities', icon: '🗺️', category: 'Geography & Nature' },
+            { id: 61, name: 'Nutrition & Diet', icon: '🍎', category: 'Geography & Nature' },
+
+            // Cats & Dogs
+            { id: 62, name: 'Cat Behavior', icon: '🐱', category: 'Cats & Dogs' },
+            { id: 63, name: 'Dog Training', icon: '🐶', category: 'Cats & Dogs' },
+            { id: 64, name: 'Pet Nutrition', icon: '🥩', category: 'Cats & Dogs' },
+            { id: 65, name: 'Animal Welfare', icon: '❤️', category: 'Cats & Dogs' },
+            { id: 66, name: 'Veterinary Science', icon: '🐾', category: 'Cats & Dogs' }
         ];
         
         let TOPIC_POOL = [...TOPIC_POOL_DATA];
@@ -626,6 +654,13 @@
             getElement(`step-${stepNumber}`).classList.remove('hidden');
             updateProgressBar(stepNumber);
             updateButtonStates();
+            
+            // Initialize scroll-based category navigation when Step 2 is shown
+            if (stepNumber === 2) {
+                setTimeout(() => {
+                    initializeScrollNavigation();
+                }, 100);
+            }
         }
 
         function updateProgressBar(step) {
@@ -779,64 +814,119 @@
             icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
         }
 
-        // NEW: Function to render category buttons
-        function renderCategoryButtons() {
-            const categoryContainer = getElement('category-buttons');
+        // NEW: Function to render the category sidebar
+        function renderCategorySidebar() {
+            const categoryContainer = getElement('category-list');
             categoryContainer.innerHTML = CATEGORIES.map(category => {
                 const isActive = category === appState.currentCategory;
                 return `
-                    <button class="category-btn ${isActive ? 'active' : ''}" 
-                            onclick="switchCategory('${category}')">
+                    <div class="category-item ${isActive ? 'active' : ''}" 
+                         onclick="scrollToCategory('${category}')">
                         ${category}
-                    </button>
-                `;
-            }).join('');
-        }
-
-        // NEW: Function to switch categories
-        function switchCategory(category) {
-            appState.currentCategory = category;
-            renderCategoryButtons();
-            renderCards();
-        }
-
-        // NEW: Function to navigate categories
-        function navigateCategory(direction) {
-            const currentIndex = CATEGORIES.indexOf(appState.currentCategory);
-            let newIndex;
-            
-            if (direction === 'next') {
-                newIndex = (currentIndex + 1) % CATEGORIES.length;
-            } else {
-                newIndex = (currentIndex - 1 + CATEGORIES.length) % CATEGORIES.length;
-            }
-            
-            switchCategory(CATEGORIES[newIndex]);
-        }
-
-        function renderCards() {
-            // Render category buttons
-            renderCategoryButtons();
-
-            // Render topic cards for current category
-            const topicContainer = getElement('topic-cards');
-            const currentCategoryTopics = TOPIC_POOL.filter(t => t.category === appState.currentCategory);
-            
-            topicContainer.innerHTML = currentCategoryTopics.map(t => {
-                const isSelected = appState.selectedTopicIds.includes(t.id);
-                const idString = typeof t.id === 'number' ? t.id : `'${t.id}'`;
-
-                return `
-                    <div id="topic-${t.id}" class="card-topic p-4 rounded-xl flex flex-col items-center text-center ${isSelected ? 'selected' : ''}" onclick="toggleSelection(${idString}, 'topic')">
-                        <span class="text-3xl mb-1">${t.icon}</span>
-                        <h3 class="font-semibold text-gray-800">${t.name}</h3>
-                        <p class="text-xs text-gray-500 uppercase font-medium">${t.category}</p>
-                        ${isSelected ? `<div class="priority-number">${appState.selectedTopicIds.indexOf(t.id) + 1}</div>` : ''}
                     </div>
                 `;
             }).join('');
+        }
 
-            // Render format cards
+        // NEW: Function to render topic categories in the main scroll area
+        function renderTopicCategories() {
+            const topicsContainer = getElement('topics-scroll-container');
+            topicsContainer.innerHTML = CATEGORIES.map(category => {
+                const categoryTopics = TOPIC_POOL.filter(t => t.category === category);
+                const isActive = category === appState.currentCategory;
+                
+                return `
+                    <div class="topic-category ${isActive ? 'active' : ''}" id="category-${category.replace(/\s+/g, '-')}">
+                        <h3>${category}</h3>
+                        <div class="topic-grid">
+                            ${categoryTopics.map(t => {
+                                const isSelected = appState.selectedTopicIds.includes(t.id);
+                                const idString = typeof t.id === 'number' ? t.id : `'${t.id}'`;
+                                
+                                return `
+                                    <div id="topic-${t.id}" class="card-topic p-4 rounded-xl flex flex-col items-center text-center ${isSelected ? 'selected' : ''}" onclick="toggleSelection(${idString}, 'topic')">
+                                        <span class="text-3xl mb-1">${t.icon}</span>
+                                        <h3 class="font-semibold text-gray-800">${t.name}</h3>
+                                        <p class="text-xs text-gray-500 uppercase font-medium">${t.category}</p>
+                                        ${isSelected ? `<div class="priority-number">${appState.selectedTopicIds.indexOf(t.id) + 1}</div>` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // NEW: Function to scroll to a specific category
+        function scrollToCategory(category) {
+            const categoryElement = getElement(`category-${category.replace(/\s+/g, '-')}`);
+            if (categoryElement) {
+                categoryElement.scrollIntoView({ behavior: 'smooth' });
+                setActiveCategory(category);
+            }
+        }
+
+        // NEW: Function to set the active category
+        function setActiveCategory(category) {
+            appState.currentCategory = category;
+            
+            // Update active state in sidebar
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            const activeCategoryItem = Array.from(document.querySelectorAll('.category-item'))
+                .find(item => item.textContent === category);
+            
+            if (activeCategoryItem) {
+                activeCategoryItem.classList.add('active');
+            }
+            
+            // Update active state in topic sections
+            document.querySelectorAll('.topic-category').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            const activeSection = getElement(`category-${category.replace(/\s+/g, '-')}`);
+            if (activeSection) {
+                activeSection.classList.add('active');
+            }
+        }
+
+        // NEW: Function to initialize scroll-based navigation
+        function initializeScrollNavigation() {
+            const topicSections = document.querySelectorAll('.topic-category');
+            const observerOptions = {
+                root: getElement('topics-scroll-container'),
+                rootMargin: '0px',
+                threshold: 0.5
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const categoryId = entry.target.id.replace('category-', '').replace(/-/g, ' ');
+                        setActiveCategory(categoryId);
+                    }
+                });
+            }, observerOptions);
+
+            topicSections.forEach(section => {
+                observer.observe(section);
+            });
+        }
+
+        // NEW: Function to render all cards (for Step 3)
+        function renderCards() {
+            // For Step 2, we use the new layout with scroll-triggered categories
+            if (appState.currentStep === 2) {
+                renderCategorySidebar();
+                renderTopicCategories();
+                return;
+            }
+
+            // For Step 3, use the original format cards
             const formatContainer = getElement('format-cards');
             formatContainer.innerHTML = FORMAT_POOL.map(f => {
                 const selectedItem = appState.selectedFormats.find(sf => sf.id === f.id);
@@ -1036,8 +1126,6 @@
             reader.readAsText(file);
         }
 
-        // ... (rest of the functions remain the same as in the original code)
-
         // =====================================================================================================
         // INITIALIZATION
         // =====================================================================================================
@@ -1065,10 +1153,6 @@
             getElement('step-2-back').addEventListener('click', () => showStep(1));
             const nextButtonStep2 = getElement('step-2-next');
             nextButtonStep2.addEventListener('click', handleStep2Next);
-            
-            // Category navigation
-            getElement('prev-category').addEventListener('click', () => navigateCategory('prev'));
-            getElement('next-category').addEventListener('click', () => navigateCategory('next'));
 
             const customTopicInput = getElement('custom-topic-text');
             customTopicInput.addEventListener('input', updateButtonStates);
@@ -1121,7 +1205,6 @@
 
         window.onload = init;
 
-        // ... (rest of the OpenAI API functions remain the same as in the original code)
         // Note: The OpenAI API functions (callOpenAIApi, buildOpenAIPayload, buildSummaryPayload, 
         // processGeneratedText, generateTopicSummary, generateAssignmentsForTopics, startGeneration,
         // displayAssignments, gradeAssignments, submitAssignments, copyToClipboard) remain unchanged
