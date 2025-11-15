@@ -1129,6 +1129,748 @@
         }
 
         // =====================================================================================================
+        // MISSING FUNCTIONS FOR STEPS 3-5 (ADDED FROM WORKING VERSION)
+        // =====================================================================================================
+
+        // MODIFIED: Function to handle user input changes and store them in appState.userAnswers
+        function handleUserAnswer(assignmentIndex, inputElement, answerType, subIndex = null) {
+            appState.userAnswers[assignmentIndex] = appState.userAnswers[assignmentIndex] || {};
+
+            // MODIFIED: Handle multi-input arrays for Vocab, Grammar, and MC
+            if (subIndex !== null) {
+                if (!appState.userAnswers[assignmentIndex].answer) {
+                    appState.userAnswers[assignmentIndex].answer = []; // Initialize as array
+                }
+                
+                if (answerType === 'MultipleChoice') {
+                    appState.userAnswers[assignmentIndex].answer[subIndex] = inputElement.value; // Store index
+                    // No visual feedback needed for plain radio buttons
+                } else {
+                    appState.userAnswers[assignmentIndex].answer[subIndex] = inputElement.value.trim(); // Store text
+                }
+                return; // Skip other logic
+            }
+            
+            // Handle single-input types (WritingPrompt)
+            if (answerType === 'WritingPrompt') {
+                appState.userAnswers[assignmentIndex].answer = inputElement.value.trim();
+            }
+        }
+
+        // MODIFIED: Function to render interactive elements based on assignment type
+        function renderInteractiveElement(assignment, index) {
+            const assignmentId = `assignment-${index}`;
+            const type = assignment.type;
+            let html = '';
+
+            // MODIFIED: New MultipleChoice rendering (5-in-1, prot_4 style)
+            if (type === 'MultipleChoice' && assignment.questions && Array.isArray(assignment.questions)) {
+                html += '<div class="space-y-4">'; // Space between each question
+
+                assignment.questions.forEach((mcq, mcqIndex) => {
+                    const savedChoice = (appState.userAnswers[index]?.answer || [])[mcqIndex]; // This is the index "0", "1" etc.
+                    
+                    html += `<div class="p-3 border rounded-lg bg-gray-50" id="${assignmentId}-mcq-${mcqIndex}">`;
+                    // MODIFIED: Trim question text
+                    html += `<p class="font-medium mb-2">${mcqIndex + 1}. ${mcq.question_text.trim()}</p>`; // Question text
+                    
+                    // Render the plain radio button options from prot_4
+                    mcq.options.forEach((option, optionIndex) => {
+                        const optionId = `${assignmentId}-mcq-${mcqIndex}-option-${optionIndex}`;
+                        // Check if this option was the one saved
+                        const isChecked = savedChoice === String(optionIndex);
+                        
+                        html += `
+                            <label for="${optionId}" class="block">
+                                <input type="radio" id="${optionId}" name="assignment-${index}-mc-${mcqIndex}" 
+                                       value="${optionIndex}" class="mr-2"
+                                       onchange="handleUserAnswer(${index}, this, '${type}', ${mcqIndex})"
+                                       ${isChecked ? 'checked' : ''}>
+                                ${option}
+                            </label>
+                        `;
+                    });
+                    html += '</div>'; // Close p-3
+                });
+                html += '</div>'; // Close space-y-4
+
+            // MODIFIED: New GrammarPractice rendering (5-in-1)
+            } else if (type === 'GrammarPractice' && assignment.content) {
+                html += '<div class="space-y-4">';
+                // MODIFIED: Trim content and split lines
+                const lines = (assignment.content || "").trim().split('\n').filter(Boolean);
+                
+                lines.forEach((line, lineIndex) => {
+                    // MODIFIED: Trim individual line
+                    const parts = line.trim().split('___');
+                    const savedAnswer = (appState.userAnswers[index]?.answer || [])[lineIndex] || '';
+                    if (parts.length > 1) {
+                        // UPDATED: Removed duplicate numbering
+                        html += `
+                            <div class="flex items-center space-x-2 flex-wrap">
+                                <span class="text-gray-700">${parts[0].trim()}</span>
+                                <input type="text" id="${assignmentId}-input-${lineIndex}" class="grammar-input" placeholder="Answer"
+                                       oninput="handleUserAnswer(${index}, this, '${type}', ${lineIndex})"
+                                       value="${savedAnswer}">
+                                <span class="text-gray-700">${parts[1].trim()}</span>
+                            </div>
+                        `;
+                    }
+                });
+                html += '</div>';
+
+            // MODIFIED: New VocabularyWords rendering
+            } else if (type === 'VocabularyWords' && assignment.content) {
+                // MODIFIED: Trim content and split lines
+                const lines = (assignment.content || "").trim().split('\n').filter(Boolean);
+                const instruction = lines[0].trim() + " (Write one sentence for each word below.)";
+                const words = lines.slice(1);
+                
+                html += `<p class="text-gray-700 font-medium mb-4">${instruction}</p>`; // The instruction
+                html += '<div class="space-y-4">'; // Container
+                html += words.map((word, vIndex) => {
+                    const savedAnswer = (appState.userAnswers[index]?.answer || [])[vIndex] || '';
+                    return `
+                        <p class="font-semibold">${word.trim()}</p>
+                        <textarea id="${assignmentId}-answer-${vIndex}" class="input-style" rows="2" 
+                                  placeholder="Write one sentence using the word..."
+                                  oninput="handleUserAnswer(${index}, this, 'VocabularyWords', ${vIndex})">${savedAnswer}</textarea>
+                    `;
+                }).join('');
+                html += '</div>';
+
+            } else if (type === 'WritingPrompt' && assignment.content) {
+                html += '<p class="text-sm font-semibold text-gray-700 mb-2 mt-2">Your Response (Ungraded):</p>';
+                html += `
+                    <textarea id="${assignmentId}-input" rows="5" placeholder="Write your response here..."
+                              class="input-style"
+                              oninput="handleUserAnswer(${index}, this, '${type}')">${appState.userAnswers[index]?.answer || ''}</textarea>
+                `;
+            } else {
+                // Fallback for unexpected format
+                const fallbackContent = (assignment.question || assignment.content || "Error: Could not render").trim();
+                html += `<p class="text-sm text-red-500">Error: Could not render interactive element for this type. Content: ${fallbackContent}</p>`;
+            }
+
+            return html;
+        }
+
+        // NEW: Creates the DOM element for a summary
+        function createSummaryElement(summaryText, title) {
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'summary-block';
+            summaryDiv.innerHTML = `
+                <h2 class="text-xl font-bold text-gray-800 mb-3">${title}</h2>
+                <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">${summaryText}</div>
+            `;
+            return summaryDiv;
+        }
+
+        // NEW: Creates the DOM element for an assignment (refactored from displayAssignments)
+        function createAssignmentElement(assignment, index) {
+            const card = document.createElement('div');
+            // MODIFIED: Use 4 colors
+            const sidebarColors = ['block-order-1', 'block-order-2', 'block-order-3', 'block-order-4'];
+            const colorClass = sidebarColors[index % 4];
+            
+            // NEW: Using .assignment-block class and ID
+            card.className = `assignment-block ${colorClass}`; 
+            card.id = `assignment-card-${index}`; // Keep ID for graders
+
+            // MODIFIED: Handle what content to show in the top block
+            let assignmentContent = "";
+            if (assignment.type === 'WritingPrompt') {
+                // Only WritingPrompt shows its content here
+                assignmentContent = (assignment.content || "").trim();
+            } else if (assignment.type === 'GrammarPractice') {
+                // Grammar shows its main "question" (instruction) here
+                assignmentContent = (assignment.question || "").trim();
+            }
+            // VocabularyWords and MultipleChoice show NOTHING here
+
+            const typeName = formatTypeToName(assignment.type); // Use helper
+            // Add a number if there are multiple assignments of the same type
+            const assignmentTitle = assignment.title || 'Assignment';
+            
+            // Get HTML from the modified render function
+            const interactiveHtml = renderInteractiveElement(assignment, index);
+
+            // NEW HTML Structure (from prot_4)
+            card.innerHTML = `
+                <h3 class="text-2xl font-bold mb-3">${typeName} - <span class="text-lg font-medium text-gray-500">${assignmentTitle}</span></h3>
+                
+                ${assignmentContent ? `
+                    <div class="question-area mb-4">
+                        <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                            ${assignmentContent.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                ` : ''} 
+
+                <div class="interactive-area pt-2">
+                    ${interactiveHtml}
+                </div>
+                
+                <div id="feedback-${index}" class="text-sm mt-4 p-3 rounded-lg hidden border-l-4"></div>
+            `;
+            return card;
+        }
+
+        // MODIFIED: This function now builds the visual structure from prot_4
+        // AND includes the new Summary logic
+        function displayAssignments() {
+            const resultsContainer = getElement('assignments-workspace');
+            const submitButton = getElement('submit-assignments');
+            
+            resultsContainer.innerHTML = ''; // Clear previous content
+            
+            // UPDATED: Remove "No Assignments" message handling
+            const hasContent = appState.generatedSummaries.length > 0 || appState.generatedAssignments.length > 0;
+            
+            if (!hasContent) {
+                resultsContainer.classList.add('hidden');
+                submitButton.classList.add('hidden'); // Hide submit if no assignments
+                return;
+            }
+            
+            // Show assignments
+            resultsContainer.classList.remove('hidden');
+            submitButton.classList.remove('hidden');
+
+            // Initialize userAnswers array
+            appState.userAnswers = new Array(appState.generatedAssignments.length).fill(null).map(() => ({ answer: null })); // Use null for array/string flexibility
+            getElement('grading-summary').classList.add('hidden');
+
+            // MODIFIED: Populate new header with ALL topics
+            const topicNames = appState.selectedTopicIds.map(id => {
+                return TOPIC_POOL.find(t => t.id === id)?.name;
+            }).filter(Boolean).join(', ') || 'N/A';
+            
+            getElement('final-topic-display').textContent = topicNames;
+            getElement('final-level-display').textContent = appState.cefrLevel;
+            
+            // --- SIMPLIFIED DISPLAY LOGIC (ALWAYS MERGE) ---
+            const summary = appState.generatedSummaries[0]?.summary;
+            if (summary) {
+                resultsContainer.appendChild(createSummaryElement(summary, 'Topic Summary'));
+            }
+            appState.generatedAssignments.forEach((assignment, index) => {
+                resultsContainer.appendChild(createAssignmentElement(assignment, index));
+            });
+            // --- END SIMPLIFIED DISPLAY LOGIC ---
+        }
+        
+        // =====================================================================================================
+        // OPENAI API INTEGRATION LOGIC (ADDED FROM WORKING VERSION)
+        // =====================================================================================================
+
+        async function callOpenAIApi(payload) {
+            const maxRetries = 3;
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(OPENAI_URL, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${API_KEY}` // Using Authorization header
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 401) {
+                        throw new Error("Unauthorized (401). Please check if your OpenAI API Key is valid and correctly entered.");
+                    }
+                    if (!response.ok) {
+                        const errorBody = await response.json();
+                        console.error(`Attempt ${attempt + 1} failed:`, errorBody);
+                        throw new Error(`OpenAI API error: ${response.status} - ${errorBody.error?.message || 'Unknown error'}`);
+                    }
+
+                    const result = await response.json();
+                    return result;
+
+                } catch (error) {
+                    if (attempt < maxRetries - 1) {
+                        const delay = Math.pow(2, attempt) * 2000; // Exponential backoff (2s, 4s)
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    } else {
+                        // Throw final error if max retries reached
+                        throw new Error(`Failed to communicate with OpenAI after ${maxRetries} attempts. Details: ${error.message}`);
+                    }
+                }
+            }
+        }
+
+        function processGeneratedText(apiResponse) {
+            try {
+                // OpenAI JSON mode returns content in choices[0].message.content
+                const textPart = apiResponse?.choices?.[0]?.message?.content;
+                
+                if (!textPart) {
+                    throw new Error("OpenAI response was empty or malformed.");
+                }
+
+                // The model is instructed to return a JSON object like { "assignments": [...] }
+                const responseJson = JSON.parse(textPart);
+
+                if (!Array.isArray(responseJson.assignments)) {
+                    throw new Error("LLM response did not contain the expected 'assignments' array.");
+                }
+
+                return responseJson.assignments;
+
+            } catch (e) {
+                console.error("Error parsing LLM output:", e);
+                throw new Error("Could not process the generated assignment text. The LLM might have returned invalid JSON or a non-compliant structure.");
+            }
+        }
+
+        // NEW: Function to generate just the summary
+        async function generateTopicSummary(topicIds) {
+            const payload = buildSummaryPayload(topicIds, appState);
+            const apiResponse = await callOpenAIApi(payload);
+            // For text-only response, we don't parse JSON
+            const summaryText = apiResponse?.choices?.[0]?.message?.content;
+            if (!summaryText) {
+                throw new Error("LLM failed to return a summary text.");
+            }
+            return summaryText;
+        }
+
+        // NEW: Function to generate just the assignments
+        async function generateAssignmentsForTopics(topicIds, summary) {
+            const payload = buildOpenAIPayload(topicIds, summary, appState);
+            const apiResponse = await callOpenAIApi(payload);
+            // This call expects JSON, so we process it
+            return processGeneratedText(apiResponse);
+        }
+
+        // MODIFIED: This is the new master generation function
+        async function startGeneration() {
+            // Check for API Key
+            if (!API_KEY) {
+                getElement('error-message').textContent = "Please enter your OpenAI API Key in Step 1 to continue.";
+                getElement('generation-error').classList.remove('hidden');
+                showStep(1);
+                return;
+            }
+
+            // Show Step 4 and the loading state
+            showStep(4);
+            getElement('generation-error').classList.add('hidden');
+            getElement('generation-loading').classList.remove('hidden');
+            getElement('assignments-workspace').classList.add('hidden');
+            
+            // Disable buttons
+            getElement('step-4-back-to-prev').disabled = true;
+            getElement('submit-assignments').disabled = true;
+
+            try {
+                // Clear old data
+                appState.generatedSummaries = [];
+                appState.generatedAssignments = [];
+                displayAssignments(); // Clear the UI
+
+                const topicIds = appState.selectedTopicIds;
+
+                if (topicIds.length > 0) {
+                    // Generate summary first
+                    const summary = await generateTopicSummary(topicIds);
+                    appState.generatedSummaries.push({ topicId: 'merged', summary: summary });
+
+                    // Generate assignments using the summary
+                    const assignments = await generateAssignmentsForTopics(topicIds, summary);
+                    appState.generatedAssignments = assignments;
+                } else {
+                    throw new Error("No topics selected. Please go back to Step 2.");
+                }
+
+                // Now display everything
+                displayAssignments();
+
+            } catch (error) {
+                console.error("Critical Generation Error:", error);
+                // Show the error message to the user
+                const errorMessageElement = getElement('error-message');
+                errorMessageElement.textContent = `The generation process failed: ${error.message}. Please check your API key, network connection, or try again.`;
+                getElement('generation-error').classList.remove('hidden');
+
+                // Clear any old assignments
+                appState.generatedSummaries = [];
+                appState.generatedAssignments = [];
+                displayAssignments(); // This will show the "no assignments" message
+                getElement('assignments-workspace').classList.add('hidden');
+            } finally {
+                getElement('generation-loading').classList.add('hidden');
+                // Re-enable buttons
+                getElement('step-4-back-to-prev').disabled = false;
+                updateButtonStates(); // This will re-check if submit should be enabled
+            }
+        }
+
+        // MODIFIED: This function now takes arguments instead of reading global state
+        function buildOpenAIPayload(topicIds, summary, appState) {
+            const level = appState.cefrLevel;
+            
+            // Get selected topic details
+            const selectedTopics = topicIds.map(id => {
+                return TOPIC_POOL.find(t => t.id === id);
+            }).filter(Boolean);
+
+            const topicNames = selectedTopics.map(t => t.name);
+            
+            // Priority weight logic for LLM
+            const priorityExplanation = selectedTopics.length === 2 
+                ? `Topic 1 (${topicNames[0]}) has a 60% priority weight. Topic 2 (${topicNames[1]}) has a 40% priority weight.` 
+                : selectedTopics.length === 1 
+                ? `Topic 1 (${topicNames[0]}) has a 100% priority weight.`
+                : '';
+
+            // This now builds the formatTypes array based on the counts
+            const formatTypes = [];
+            appState.selectedFormats.forEach(sf => {
+                const formatFromPool = FORMAT_POOL.find(f => f.id === sf.id);
+                if (formatFromPool) {
+                    for (let i = 0; i < sf.count; i++) {
+                        formatTypes.push(formatFromPool.type);
+                    }
+                }
+            });
+            
+            const numAssignments = formatTypes.length; // This now reflects the total count
+
+            // MODIFIED: Updated system prompt with new requirements
+            const systemPrompt = `You are an expert English assignment generator. Your task is to create ${numAssignments} high-quality, professional English learning assignments based on the user's detailed criteria.
+            The user requires the output to be a single, raw JSON object that conforms EXACTLY to the following structure. DO NOT include any explanatory text, markdown, or preamble/postamble outside of the JSON block.
+            
+            JSON Structure:
+            {
+              "assignments": [
+                {
+                  "title": "A concise title for the assignment.",
+                  "type": "The exact assignment type, MUST be one of: ${formatTypes.join(', ')}",
+                  "content": "The full instructions/body text for WritingPrompt OR the 5 sentences for GrammarPractice (separated by \\n) OR the list of words for VocabularyWords.",
+                  "question": "The main instruction text for MultipleChoice OR GrammarPractice (e.g., 'Choose the best option.' or 'Fill in the blanks.').",
+                  "correctAnswer": "An array of 5 correct answer strings for GrammarPractice (e.g., ["is", "are", "was", "were", "been"]). Null otherwise.",
+                  
+                  "questions": [
+                    {
+                      "question_text": "The text for an individual question.",
+                      "options": ["A", "B", "C", "D"],
+                      "correctAnswerIndex": 0
+                    }
+                  ]
+                },
+                ... (one object for each requested assignment format, respecting the requested quantity of each type)
+              ]
+            }
+            
+            CRITICAL REQUIREMENTS:
+            
+            1. CEFR LEVEL ENFORCEMENT:
+               - ALL content MUST be written at the CEFR ${level} level.
+               - Use vocabulary, grammar complexity, and sentence structures appropriate for ${level} learners.
+               - The difficulty MUST match the specified ${level} level EXACTLY.
+               
+            2. ASSIGNMENT-SPECIFIC RULES:
+            
+            - WritingPrompt: 
+              * MUST be directly based on and test comprehension of the provided summary text.
+              * Use 'content' for the prompt. Set all other fields to null.
+              
+            - MultipleChoice:
+              * MUST be directly based on and test comprehension of the provided summary text.
+              * Use 'question' for the main instruction (e.g., "Read the text and choose...").
+              * Use the 'questions' array to provide 5 individual multiple-choice questions that test comprehension of the summary.
+              * Set 'content' and 'correctAnswer' to null.
+              
+            - VocabularyWords:
+              * Can be loosely related to the topics.
+              * Use 'content' for the prompt AND the list of words. The first line is the prompt, subsequent lines are the words (e.g., "Use these words in a sentence:\\n1. Word (n): Definition...\\n2. Word (v): Definition..."). 
+              * Set all other fields to null.
+              
+            - GrammarPractice:
+              * Can be loosely related to the topics.
+              * Use 'question' for the main instruction (e.g., "Complete the sentences...").
+              * Use 'content' for the 5 sentences, each separated by \\n and containing a '___' blank. 
+              * Use 'correctAnswer' for an array of 5 correct strings. 
+              * Set 'questions' to null.
+            `;
+            
+            // User Query: Supplies the specific content criteria
+            const userQuery = `
+                Generate the assignments now.
+                
+                1. Difficulty Level (CEFR): ${level}
+                2. Core Topic(s) (in order of priority): ${topicNames.join(', ')}
+                3. Assignment Formats (requesting the TYPES): ${formatTypes.join(', ')}
+                4. Generated Summary Text: "${summary}"
+
+                CRITICAL INSTRUCTIONS:
+                
+                - WritingPrompt and MultipleChoice assignments MUST be EXPLICITLY based on the provided summary text above.
+                - VocabularyWords and GrammarPractice can be more loosely related to the topics.
+                - ${priorityExplanation}
+                
+                You must generate exactly ${numAssignments} total assignments, one for each type listed in 'Assignment Formats'.
+            `;
+            
+            return {
+                model: OPENAI_MODEL,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userQuery }
+                ],
+                // CRITICAL: Force the model to return a JSON object
+                response_format: { type: "json_object" }
+            };
+        }
+
+        // NEW: Creates the payload for the summary generation
+        function buildSummaryPayload(topicIds, appState) {
+            const level = appState.cefrLevel;
+            
+            // Get selected topic details
+            const selectedTopics = topicIds.map(id => {
+                return TOPIC_POOL.find(t => t.id === id);
+            }).filter(Boolean);
+
+            const topicNames = selectedTopics.map(t => t.name);
+            const topicContent = selectedTopics.map(t => {
+                if ((t.id === 'custom_topic' || t.id === 'uploaded' || t.id === 'random_topic') && t.content) {
+                    return `\n\n[USER PROVIDED CONTENT FOR ${t.name}:\n${t.content.substring(0, 500)}...\n]`
+                }
+                return '';
+            }).join('');
+            
+            const priorityExplanation = selectedTopics.length === 2 
+                ? `Topic 1 (${topicNames[0]}) has a 60% priority weight. Topic 2 (${topicNames[1]}) has a 40% priority weight.` 
+                : `Topic 1 (${topicNames[0]}) has a 100% priority weight.`;
+
+            // MODIFIED: Updated summary prompt with new two-topic relationship structure
+            const systemPrompt = `You are an expert educator and creative writer. Your task is to generate a single, high-quality, and informative topic summary for an English learner.
+            - The summary MUST be between 200 and 300 words.
+            - The summary MUST be written at the specified CEFR level (${level}). Use vocabulary and sentence structures appropriate for ${level} learners.
+            - You MUST return ONLY the raw text of the summary.
+            - Do NOT include any titles, headers, markdown, or any text other than the summary itself.
+            - Do NOT return JSON.
+            
+            CRITICAL STRUCTURE (ESPECIALLY FOR TWO TOPICS):
+            - If one topic is provided, create a clear summary of it.
+            - If two topics are provided, you MUST weave them together into a single, cohesive "story" or narrative. Do NOT just list them.
+            - Start by very briefly introducing each topic's core idea (one sentence each).
+            - Then, immediately begin to merge and connect them.
+            - Your main task is to find or create a relationship between them.
+            
+            1.  **Analyze the Relationship:** First, determine if the topics have a realistic, factual relationship.
+            2.  **Realistic Story:** If they DO have a factual connection (e.g., "AI & ML" and "Cybersecurity"), create the summary "story" about this real-world relationship.
+            3.  **Creative Story:** If they do NOT have an obvious factual connection (e.g., "Quantum Physics" and "Shakespeare"), you MUST get creative. Invent a hypothetical or metaphorical relationship. Create a "story" that links them in a compelling, imaginative way. You can state that this is a creative or "fantasy" connection if it helps the narrative.
+            
+            - The goal is a single, merged summary, not two separate ones.
+            `;
+            
+            const userQuery = `
+                Generate the topic summary now.
+                1. Difficulty Level (CEFR): ${level}
+                2. Core Topic(s) (in order of priority): ${topicNames.join(', ')}
+                3. Word Count: 200-300 words.
+                
+                ${priorityExplanation}
+                ${topicContent}
+                
+                Return ONLY the raw text of the summary.
+            `;
+            
+            return {
+                model: OPENAI_MODEL, // Use the same model
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userQuery }
+                ],
+                // DO NOT include response_format, as we want plain text
+            };
+        }
+
+        // MODIFIED: Grading Function to support new array-based answers
+        function gradeAssignments() {
+            let correctCount = 0;
+            let totalGradable = 0;
+            let finalAssignmentText = '';
+            
+            // NEW: Add summaries to the final text
+            appState.generatedSummaries.forEach(summaryItem => {
+                const topic = TOPIC_POOL.find(t => t.id === summaryItem.topicId);
+                const title = topic ? topic.name : 'Summary';
+                finalAssignmentText += `========== SUMMARY: ${title} ==========\n${summaryItem.summary}\n\n`;
+            });
+            if (appState.generatedSummaries.length > 0) {
+                 finalAssignmentText += `\n========== ASSIGNMENTS ==========\n`;
+            }
+
+            appState.generatedAssignments.forEach((assignment, index) => {
+                const userAnswer = appState.userAnswers[index]?.answer; // This can be a string OR an array
+                const feedbackElement = getElement(`feedback-${index}`);
+                const cardElement = getElement(`assignment-card-${index}`);
+                const type = assignment.type;
+
+                // Reset state
+                feedbackElement.classList.add('hidden');
+                feedbackElement.className = 'text-sm mt-4 p-3 rounded-lg border-l-4'; 
+                
+                // MODIFIED: New MC grading logic
+                if (type === 'MultipleChoice' && assignment.questions) {
+                    let correctInBlock = 0;
+                    const userAnswerArray = userAnswer || [];
+                    const totalInBlock = assignment.questions.length;
+                    totalGradable += totalInBlock;
+                    
+                    let mcqFinalText = '';
+                    let mcqFeedbackText = ''; // Text for Step 4 feedback
+
+                    assignment.questions.forEach((mcq, mcqIndex) => {
+                        const correctIndex = mcq.correctAnswerIndex;
+                        const userChoice = userAnswerArray[mcqIndex]; // This is the index (e.g., "1")
+                        let isCorrect = false;
+
+                        if (userChoice !== undefined && userChoice !== null) {
+                            isCorrect = parseInt(userChoice) === correctIndex;
+                            if (isCorrect) {
+                                correctInBlock++;
+                                correctCount++;
+                            }
+                        }
+                        
+                        // Text for Step 5
+                        const selectedText = (userChoice !== undefined && userChoice !== null) ? mcq.options[parseInt(userChoice)] : 'N/A';
+                        mcqFinalText += `  Q${mcqIndex + 1}: ${mcq.question_text}\n  Your Answer: ${selectedText}\n  Correct Answer: ${mcq.options[correctIndex]}\n  Result: ${isCorrect ? 'Correct' : 'Incorrect'}\n\n`;
+                        
+                        // MODIFIED: New feedback text for Step 4
+                        if (isCorrect) {
+                            mcqFeedbackText += `<p class="text-sm text-green-600">Q${mcqIndex + 1}: Correct!</p>`;
+                        } else if (userChoice === undefined || userChoice === null) {
+                            mcqFeedbackText += `<p class="text-sm text-yellow-600">Q${mcqIndex + 1}: Skipped. Correct was: ${mcq.options[correctIndex]}</p>`;
+                        } else {
+                            mcqFeedbackText += `<p class="text-sm text-red-600">Q${mcqIndex + 1}: Incorrect. Correct was: ${mcq.options[correctIndex]}</p>`;
+                        }
+                    });
+
+                    // Update feedback element
+                    feedbackElement.innerHTML = `
+                        <p class="font-semibold mb-2">Result: You answered ${correctInBlock} / ${totalInBlock} questions correctly.</p>
+                        ${mcqFeedbackText}
+                    `;
+                    feedbackElement.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-400');
+                    feedbackElement.classList.remove('hidden');
+
+                    finalAssignmentText += `--- ${assignment.title} (Multiple Choice) ---\n${mcqFinalText}`;
+
+                // MODIFIED: New Grammar grading logic
+                } else if (type === 'GrammarPractice' && Array.isArray(assignment.correctAnswer)) {
+                    let correctInBlock = 0;
+                    const userAnswerArray = userAnswer || [];
+                    const expectedAnswerArray = assignment.correctAnswer;
+                    const totalInBlock = expectedAnswerArray.length;
+                    totalGradable += totalInBlock;
+
+                    let grammarFinalText = `Prompt: ${assignment.content.replace(/\n/g, '\n  ')}\n`;
+                    let grammarFeedbackText = ''; // Text for Step 4 feedback
+                    
+                    expectedAnswerArray.forEach((expectedAns, ansIndex) => {
+                        const userAns = (userAnswerArray[ansIndex] || "").trim().toLowerCase();
+                        const correctAns = expectedAns.trim().toLowerCase();
+                        let isCorrect = false;
+
+                        if (userAns === correctAns) {
+                            correctInBlock++;
+                            correctCount++;
+                            isCorrect = true;
+                        }
+                        
+                        grammarFinalText += `  Q${ansIndex + 1}: Your Answer: "${userAnswerArray[ansIndex] || 'N/A'}", Correct: "${expectedAns}", Result: ${isCorrect ? 'Correct' : 'Incorrect'}\n`;
+                        
+                        // New feedback text for Step 4
+                        if (isCorrect) {
+                            grammarFeedbackText += `<p class="text-sm text-green-600">Q${ansIndex + 1}: Correct!</p>`;
+                        } else if (!userAnswerArray[ansIndex]) {
+                            grammarFeedbackText += `<p class="text-sm text-yellow-600">Q${ansIndex + 1}: Skipped. Correct was: "${expectedAns}"</p>`;
+                        } else {
+                            grammarFeedbackText += `<p class="text-sm text-red-600">Q${ansIndex + 1}: Incorrect. Correct was: "${expectedAns}"</p>`;
+                        }
+                    });
+
+                    // Update feedback element
+                    feedbackElement.innerHTML = `
+                        <p class="font-semibold mb-2">Result: You answered ${correctInBlock} / ${totalInBlock} questions correctly.</p>
+                        ${grammarFeedbackText}
+                    `;
+                    feedbackElement.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-400');
+                    feedbackElement.classList.remove('hidden');
+                    
+                    finalAssignmentText += `--- ${assignment.title} (Grammar) ---\n${grammarFinalText}\n`;
+
+                } else {
+                    // WritingPrompt/VocabularyWords (Ungraded)
+                    let userResponseText = '';
+                    if (type === 'VocabularyWords' && Array.isArray(userAnswer)) {
+                        userResponseText = userAnswer.filter(Boolean).join('\n');
+                    } else if (type === 'WritingPrompt') {
+                        userResponseText = userAnswer || '';
+                    }
+
+                    feedbackElement.textContent = "📝 This is a long-form assignment and is not automatically graded in this prototype. Review your response below.";
+                    feedbackElement.classList.add('bg-gray-100', 'text-gray-600', 'border-gray-400');
+                    feedbackElement.classList.remove('hidden');
+                    
+                    // Prepare final text: Include Prompt and User Response
+                    finalAssignmentText += `--- ${assignment.title} (${type}) ---\nPrompt:\n${assignment.content}\n\nUser Response:\n${userResponseText}\n\n(Ungraded)\n\n`;
+                }
+            });
+
+            // Update Grading Summary
+            const scoreDisplay = getElement('current-score');
+            scoreDisplay.textContent = `${correctCount}/${totalGradable}`;
+            getElement('grading-summary').classList.remove('hidden');
+            
+            if (totalGradable > 0) {
+                 const percentage = Math.round((correctCount / totalGradable) * 100);
+                 getElement('grading-message').textContent = `You scored ${percentage}% on the automatically graded questions. Review the detailed feedback above for each question!`;
+            } else {
+                 getElement('grading-message').textContent = `No automatically gradable questions were generated. Your score is based on questions of type Multiple Choice and Grammar Practice.`;
+            }
+
+            // Update final text for Step 5
+            getElement('final-assignment-text').textContent = finalAssignmentText;
+            showStep(5);
+        }
+
+        function submitAssignments() {
+            gradeAssignments();
+        }
+
+        function copyToClipboard(elementId) {
+            const content = getElement(elementId).textContent;
+            
+            // Use execCommand('copy') for better compatibility in iframe environments
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = content;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            
+            try {
+                document.execCommand('copy');
+                // Simple visual feedback instead of alert()
+                const button = event.target;
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => { button.textContent = originalText; }, 1500);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+            document.body.removeChild(tempTextArea);
+        }
+
+        // =====================================================================================================
         // INITIALIZATION
         // =====================================================================================================
 
@@ -1206,11 +1948,6 @@
         }
 
         window.onload = init;
-
-        // Note: The OpenAI API functions (callOpenAIApi, buildOpenAIPayload, buildSummaryPayload, 
-        // processGeneratedText, generateTopicSummary, generateAssignmentsForTopics, startGeneration,
-        // displayAssignments, gradeAssignments, submitAssignments, copyToClipboard) remain unchanged
-        // from the original code and are omitted here for brevity.
     </script>
 </body>
 </html>
